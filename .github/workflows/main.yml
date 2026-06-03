@@ -54,9 +54,16 @@ jobs:
 
             if ! [ -L /etc/apache2/sites-enabled/site.conf ]; then
               echo '$PASS' | sudo -S a2ensite site.conf
-            if
+            fi
 
             echo '$PASS' | sudo -S apache2ctl graceful
           "
 
-      
+      - name: Upload files
+        run: |
+          sshpass -p "$PASS" scp -r -o StrictHostKeyChecking=no ./* "$USER@$HOST:/home/$USER/website/"
+
+      - name: Verify Deployment
+        run: |
+          sleep 2
+          curl "http://$HOST:$PORT/"
