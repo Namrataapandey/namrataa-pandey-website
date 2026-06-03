@@ -25,6 +25,9 @@ jobs:
         run: |
           set -e
 
+          # Sanitize HOST: strip out http://, https://, trailing slashes, and whitespace
+          CLEAN_HOST=$(echo "${HOST}" | sed -e 's|^https\?://||' -e 's|/$||' | xargs)
+
           # Dynamically build the virtualhost file locally on the runner
           echo "<VirtualHost *:$PORT>" > /tmp/site.conf
           echo "    DocumentRoot /home/$USER/website" >> /tmp/site.conf
@@ -36,10 +39,10 @@ jobs:
           echo "</VirtualHost>" >> /tmp/site.conf
 
           # Securely send configuration to remote temp directory
-          sshpass -p "$PASS" scp -o StrictHostKeyChecking=no /tmp/site.conf "$USER@$HOST:/tmp/site.conf"
+          sshpass -p "$PASS" scp -o StrictHostKeyChecking=no /tmp/site.conf "$USER@$CLEAN_HOST:/tmp/site.conf"
 
-          # Run server configurations remotely, explicitly passing the runner variables into the env environment
-          sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no "$USER@$HOST" "
+          # Run server configurations remotely
+          sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no "$USER@$CLEAN_HOST" "
             set -e
 
             if ! dpkg -s apache2 >/dev/null 2>&1; then
@@ -48,11 +51,12 @@ jobs:
             fi
 
             mkdir -p ~/website
+            
             # Fix permissions so Apache (www-data) can read the home directory path
             chmod 755 /home/$USER
             chmod 755 /home/$USER/website
 
-            # Fixed: Safely injection of the $PORT variable into the remote bash command string
+            # Safely inject the $PORT variable into the remote bash command string
             if ! grep -q \"Listen $PORT\" /etc/apache2/ports.conf; then
               echo '$PASS' | sudo -S sh -c \"echo 'Listen $PORT' >> /etc/apache2/ports.conf\"
             fi
@@ -68,11 +72,17 @@ jobs:
 
       - name: Upload files
         run: |
+          set -e
+          CLEAN_HOST=$(echo "${HOST}" | sed -e 's|^https\?://||' -e 's|/$||' | xargs)
+
           # Clean destination directory first to avoid orphaned file mixtures, then upload cleanly
-          sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no "$USER@$HOST" "rm -rf /home/$USER/website/*"
-          sshpass -p "$PASS" scp -r -o StrictHostKeyChecking=no ./* "$USER@$HOST:/home/$USER/website/"
+          sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no "$USER@$CLEAN_HOST" "rm -rf /home/$USER/website/*"
+          sshpass -p "$PASS" scp -r -o StrictHostKeyChecking=no ./* "$USER@$CLEAN_HOST:/home/$USER/website/"
 
       - name: Verify Deployment
         run: |
+          set -e
+          CLEAN_HOST=$(echo "${HOST}" | sed -e 's|^https\?://||' -e 's|/$||' | xargs)
+          
           sleep 2
-          curl -I "http://$HOST:$PORT/"
+          curl -I "http://$CLEAN_HOST:$PORT/"
