@@ -850,3 +850,12 @@ footer ul li a{
         height:60px;
     }
 }
+
+.nav-links.active {
+  display: flex;
+}
+
+.hamburger {
+  position: relative;
+  z-index: 9999;
+}

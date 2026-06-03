@@ -38,3 +38,9 @@ function typeWriter() {
 
 // Wait for DOM to be ready
 document.addEventListener("DOMContentLoaded", typeWriter);
+const hamburger = document.querySelector(".hamburger");
+const navLinks = document.querySelector(".nav-links");
+
+hamburger.addEventListener("click", () => {
+  navLinks.classList.toggle("active");
+});
