@@ -25,17 +25,20 @@ jobs:
         run: |
           set -e
 
-          echo '<VirtualHost *:'"$PORT"'>' > /tmp/site.conf
-          echo '    DocumentRoot /home/'"$USER"'/website' >> /tmp/site.conf
-          echo '    <Directory /home/'"$USER"'/website>' >> /tmp/site.conf
-          echo '        Options Indexes FollowSymLinks' >> /tmp/site.conf
-          echo '        AllowOverride None' >> /tmp/site.conf
-          echo '        Require all granted' >> /tmp/site.conf
-          echo '    </Directory>' >> /tmp/site.conf
-          echo '</VirtualHost>' >> /tmp/site.conf
+          # Dynamically build the virtualhost file locally on the runner
+          echo "<VirtualHost *:$PORT>" > /tmp/site.conf
+          echo "    DocumentRoot /home/$USER/website" >> /tmp/site.conf
+          echo "    <Directory /home/$USER/website>" >> /tmp/site.conf
+          echo "        Options Indexes FollowSymLinks" >> /tmp/site.conf
+          echo "        AllowOverride None" >> /tmp/site.conf
+          echo "        Require all granted" >> /tmp/site.conf
+          echo "    </Directory>" >> /tmp/site.conf
+          echo "</VirtualHost>" >> /tmp/site.conf
 
+          # Securely send configuration to remote temp directory
           sshpass -p "$PASS" scp -o StrictHostKeyChecking=no /tmp/site.conf "$USER@$HOST:/tmp/site.conf"
 
+          # Run server configurations remotely, explicitly passing the runner variables into the env environment
           sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no "$USER@$HOST" "
             set -e
 
@@ -45,9 +48,13 @@ jobs:
             fi
 
             mkdir -p ~/website
+            # Fix permissions so Apache (www-data) can read the home directory path
+            chmod 755 /home/$USER
+            chmod 755 /home/$USER/website
 
-            if ! grep -q 'Listen $PORT' /etc/apache2/ports.conf; then
-              echo '$PASS' | sudo -S sh -c 'echo Listen $PORT >> /etc/apache2/ports.conf'
+            # Fixed: Safely injection of the $PORT variable into the remote bash command string
+            if ! grep -q \"Listen $PORT\" /etc/apache2/ports.conf; then
+              echo '$PASS' | sudo -S sh -c \"echo 'Listen $PORT' >> /etc/apache2/ports.conf\"
             fi
 
             echo '$PASS' | sudo -S mv /tmp/site.conf /etc/apache2/sites-available/site.conf
@@ -61,9 +68,11 @@ jobs:
 
       - name: Upload files
         run: |
+          # Clean destination directory first to avoid orphaned file mixtures, then upload cleanly
+          sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no "$USER@$HOST" "rm -rf /home/$USER/website/*"
           sshpass -p "$PASS" scp -r -o StrictHostKeyChecking=no ./* "$USER@$HOST:/home/$USER/website/"
 
       - name: Verify Deployment
         run: |
           sleep 2
-          curl "http://$HOST:$PORT/"
+          curl -I "http://$HOST:$PORT/"
