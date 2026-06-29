@@ -893,7 +893,7 @@ footer ul li a{
 #menu-icon {
     position: absolute;
     top:30%;
-    right:15px;
+    right:60px;
     /* z-index: 9999; */
     cursor: pointer;
 }
