@@ -36,16 +36,34 @@ function typeWriter() {
   }
 }
 
-// Wait for DOM to be ready
-document.addEventListener("DOMContentLoaded", typeWriter);
-
 // Mobile menu toggle
-const menuIcon = document.querySelector("#menu-icon");
-const navLinks = document.querySelector(".nav-links");
+function initMenuToggle() {
+  const menuIcon = document.querySelector("#menu-icon");
+  const navLinks = document.querySelector(".nav-links");
 
-if (menuIcon && navLinks) {
-  menuIcon.addEventListener("click", () => {
+  if (!menuIcon || !navLinks) return;
+
+  menuIcon.addEventListener("click", (event) => {
+    event.stopPropagation();
     navLinks.classList.toggle("active");
+    menuIcon.classList.toggle("fa-bars");
+    menuIcon.classList.toggle("fa-xmark");
+  });
+
+  document.querySelectorAll(".nav-links a").forEach((link) => {
+    link.addEventListener("click", () => {
+      navLinks.classList.remove("active");
+      menuIcon.classList.add("fa-bars");
+      menuIcon.classList.remove("fa-xmark");
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!navLinks.contains(event.target) && !menuIcon.contains(event.target)) {
+      navLinks.classList.remove("active");
+      menuIcon.classList.add("fa-bars");
+      menuIcon.classList.remove("fa-xmark");
+    }
   });
 }
 
@@ -78,6 +96,8 @@ function initScrollReveal() {
 
 // Contact form submission
 document.addEventListener("DOMContentLoaded", function() {
+  typeWriter();
+  initMenuToggle();
   initScrollReveal();
 
   const contactForm = document.querySelector(".contact-form");
